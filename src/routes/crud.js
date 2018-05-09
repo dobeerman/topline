@@ -1,5 +1,6 @@
 const debug = require('debug')('crud');
 const Router = require('koa-router');
+const faker = require('faker');
 const crud = new Router({
   prefix: '/api',
 });
@@ -67,14 +68,49 @@ crud
     ctx.body = await knex('users').select('id');
     await next();
   })
+  .post('/create', async (ctx, next) => {
+    const { book } = ctx.request.body.query;
+    debug(book);
+
+    const userId = await knex('users')
+      .select('id')
+      .where('user_name', '=', book.user_name)
+      .then(async userId => {
+        const [id] = userId;
+
+        if (id) return id.id;
+
+        const newUser = await knex('users').insert(
+          {
+            user_name: book.user_name,
+            avatar: faker.image.avatar(),
+          },
+          'id',
+        );
+
+        debug('User not found. It was created with id:%d', newUser[0]);
+
+        return newUser[0];
+      })
+      .then(async userId => {
+        const { user_name, date, ...newBook } = book;
+
+        Object.assign(newBook, { user_id: userId });
+
+        const [day, month, year] = parseDate(date);
+
+        Object.assign(newBook, {
+          date: new Date(year, month, day).toLocaleString(),
+        });
+
+        ctx.body = await knex('books').insert(newBook, 'id');
+        await next();
+      });
+  })
   .post('/update/:id', async (ctx, next) => {
     const { id, date, ...book } = ctx.request.body.query.book;
 
-    const [day, month, year] = [
-      date.substr(0, 2),
-      parseInt(date.substr(2, 2), 10) - 1,
-      date.substr(4, 4),
-    ];
+    const [day, month, year] = parseDate(date);
 
     Object.assign(book, { date: new Date(year, month, day).toLocaleString() });
 
@@ -84,5 +120,13 @@ crud
 
     await next();
   });
+
+const parseDate = dateString => {
+  return [
+    dateString.substr(0, 2),
+    parseInt(dateString.substr(2, 2), 10) - 1,
+    dateString.substr(4, 4),
+  ];
+};
 
 module.exports = crud;
