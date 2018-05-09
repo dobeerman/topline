@@ -1,0 +1,23 @@
+{
+  "name": "topline",
+  "version": "1.0.0",
+  "description": "TopLine Koa2+MySQL",
+  "main": "src/index.js",
+  "repository": "https://github.com/dobeerman/topline",
+  "author": "Alexander Smirnoff <a.dobeerman@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^5.0.1",
+    "faker": "^4.1.0",
+    "knex": "^0.14.6",
+    "koa-body": "^2.5.0",
+    "koa-router": "^7.4.0",
+    "koa2": "^2.0.0-alpha.7",
+    "mysql": "^2.15.0"
+  },
+  "devDependencies": {
+    "babel-plugin-transform-async-to-generator": "^6.24.1",
+    "babel-preset-env": "^1.6.1",
+    "debug": "^3.1.0"
+  }
+}
