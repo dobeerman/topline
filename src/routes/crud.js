@@ -1,12 +1,13 @@
-const debug = require('debug')('crud');
+const debug = require('debug')('crud:crud');
 const Router = require('koa-router');
 const faker = require('faker');
 const crud = new Router({
   prefix: '/api',
 });
 const paginator = require('../data/knex-paginator');
+const parseDate = require('../helpers/parse-date');
 
-const knex = require('../data/connect');
+const { knex } = require('../data/connect');
 
 crud
   .get('/', async (ctx, next) => {
@@ -24,15 +25,14 @@ crud
         'users.id as user_id',
         'users.avatar',
       )
+      .where(function() {
+        this.where('users.user_name', 'LIKE', `%${where}%`)
+          .orWhere('books.title', 'LIKE', `%${where}%`)
+          .orWhere('books.description', 'LIKE', `%${where}%`);
+      })
       .orderBy('title', 'ASC');
 
-    ctx.body = await paginator(knex)(
-      where ? booksQuery.whereRaw(where) : booksQuery,
-      {
-        perPage,
-        page,
-      },
-    )
+    ctx.body = await paginator(knex)(booksQuery, { perPage, page })
       .then(result => result)
       .catch(err => {
         debug(err);
@@ -120,13 +120,5 @@ crud
 
     await next();
   });
-
-const parseDate = dateString => {
-  return [
-    dateString.substr(0, 2),
-    parseInt(dateString.substr(2, 2), 10) - 1,
-    dateString.substr(4, 4),
-  ];
-};
 
 module.exports = crud;
