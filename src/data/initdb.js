@@ -1,6 +1,7 @@
 const debug = require('debug')('initdb');
-const faker = require('faker');
-const knex = require('./connect');
+// const faker = require('faker');
+const { knex } = require('./connect');
+const { users, books } = require('../helpers/fakeData');
 
 const MAX_USERS = 5;
 const MAX_ROWS = 100; // change to 1e5
@@ -17,10 +18,10 @@ const initdb = async () => {
         })
         .then(() => debug('DB %o %s', 'users', 'created'));
 
-      const users = await [...Array(MAX_USERS).keys()].map(idx => ({
-        user_name: `${faker.name.firstName()} ${faker.name.lastName()}`,
-        avatar: faker.image.avatar(),
-      }));
+      // const users = await [...Array(MAX_USERS).keys()].map(idx => ({
+      //   user_name: `${faker.name.firstName()} ${faker.name.lastName()}`,
+      //   avatar: faker.image.avatar(),
+      // }));
 
       await knex('users')
         .insert(users, 'id')
@@ -46,21 +47,22 @@ const initdb = async () => {
         })
         .then(() => debug('DB %o %s', 'books', 'created'));
 
-      const imagesTypes = ['animals', 'arch', 'nature', 'people', 'tech'];
+      // const imagesTypes = ['animals', 'arch', 'nature', 'people', 'tech'];
       await knex('users')
         .select('id')
         .then(result => result.map(el => el.id))
         .then(uids => {
           // title, date, author, description, image;
-          return [...Array(MAX_ROWS).keys()].map(idx => ({
-            title: faker.lorem.sentence(),
-            date: faker.date.past(10),
-            user_id: faker.random.arrayElement(uids), // author
-            description: faker.lorem.sentences(3, 3),
-            imageUrl: `https://placeimg.com/320/240/${faker.random.arrayElement(
-              imagesTypes,
-            )}`,
-          }));
+          return books(uids);
+          // return [...Array(MAX_ROWS).keys()].map(idx => ({
+          //   title: faker.lorem.sentence(),
+          //   date: faker.date.past(10),
+          //   user_id: faker.random.arrayElement(uids), // author
+          //   description: faker.lorem.sentences(3, 3),
+          //   imageUrl: `https://placeimg.com/320/240/${faker.random.arrayElement(
+          //     imagesTypes,
+          //   )}`,
+          // }));
         })
         .then(books => knex('books').insert(books))
         .then(() => debug('DB %o %s', 'books', 'filled by fake rows'));

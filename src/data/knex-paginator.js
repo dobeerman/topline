@@ -5,9 +5,9 @@
     paginator(knex)(booksQuery, {
 	    perPage: 1,
     }).then(({ data, pagination }) => {
-	    debug(data, pagination);
+	    console.log(data, pagination);
     }).catch(err => {
-	    debug(err);
+	    console.log(err);
     });
 */
 
