@@ -15,31 +15,32 @@ const crud = new Router({
 const paginator = require('../data/sql-paginator');
 
 crud
-  .get('/test', async (ctx, next) => {
-    const sql = `SELECT * FROM books ORDER BY title ASC`;
-
-    ctx.body = await paginator(sql, 1, 2);
-
-    // await next();
-  })
   .get('/', async (ctx, next) => {
     const { limit: perPage, offset: page, where } = ctx.request.query;
 
-    const booksQuery = `SELECT
-      books.id,
-      books.title,
-      books.description,
-      books.date,
-      books.imageUrl,
-      users.user_name,
-      users.id AS user_id,
-      users.avatar
+    const whereEscaped = db.escape(`%${where}%`);
+
+    const booksQuery = `
+      SELECT
+        books.id,
+        books.title,
+        books.description,
+        books.date,
+        books.imageUrl,
+        users.user_name,
+        users.id AS user_id,
+        users.avatar
       FROM books
       JOIN users
       ON books.user_id = users.id
-      ${where ? 'WHERE ' + where : ''}
+      WHERE
+        users.user_name LIKE ${whereEscaped}
+        OR
+        books.title LIKE ${whereEscaped}
+        OR
+        books.description LIKE ${whereEscaped}
       ORDER BY title ASC`;
-
+    debug(booksQuery);
     ctx.body = await paginator(booksQuery, page, perPage);
   })
   .get('/getbook', async (ctx, next) => {

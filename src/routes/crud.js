@@ -1,4 +1,4 @@
-const debug = require('debug')('crud');
+const debug = require('debug')('crud:crud');
 const Router = require('koa-router');
 const faker = require('faker');
 const crud = new Router({
@@ -6,7 +6,7 @@ const crud = new Router({
 });
 const paginator = require('../data/knex-paginator');
 
-const knex = require('../data/connect');
+const { knex } = require('../data/connect');
 
 crud
   .get('/', async (ctx, next) => {
@@ -24,15 +24,14 @@ crud
         'users.id as user_id',
         'users.avatar',
       )
+      .where(function() {
+        this.where('users.user_name', 'LIKE', `%${where}%`)
+          .orWhere('books.title', 'LIKE', `%${where}%`)
+          .orWhere('books.description', 'LIKE', `%${where}%`);
+      })
       .orderBy('title', 'ASC');
 
-    ctx.body = await paginator(knex)(
-      where ? booksQuery.whereRaw(where) : booksQuery,
-      {
-        perPage,
-        page,
-      },
-    )
+    ctx.body = await paginator(knex)(booksQuery, { perPage, page })
       .then(result => result)
       .catch(err => {
         debug(err);
