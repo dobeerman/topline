@@ -3,8 +3,7 @@ const Router = require('koa-router');
 const faker = require('faker');
 const mysql = require('mysql');
 const { connection } = require('../data/connect');
-
-// Object.assign(connection, { multipleStatements: true });
+const { getDate } = require('../helpers/parse-date');
 
 const db = mysql.createConnection(connection);
 
@@ -40,7 +39,7 @@ crud
         OR
         books.description LIKE ${whereEscaped}
       ORDER BY title ASC`;
-    debug(booksQuery);
+
     ctx.body = await paginator(booksQuery, page, perPage);
   })
   .get('/getbook', async (ctx, next) => {
@@ -78,9 +77,7 @@ crud
   .post('/create', async (ctx, next) => {
     const { book } = ctx.request.body.query;
 
-    const [day, month, year] = parseDate(book.date);
-
-    Object.assign(book, { date: new Date(year, month, day).toLocaleString() });
+    Object.assign(book, { date: getDate(book.date) });
 
     let sql = `SELECT id FROM users WHERE users.user_name = ?`;
 
@@ -145,9 +142,7 @@ crud
   .post('/update/:id', async (ctx, next) => {
     const { id, date, ...book } = ctx.request.body.query.book;
 
-    const [day, month, year] = parseDate(date);
-
-    Object.assign(book, { date: new Date(year, month, day).toLocaleString() });
+    Object.assign(book, { date: getDate(date) });
 
     debug('book', book, id, date);
 
@@ -172,13 +167,5 @@ crud
       );
     });
   });
-
-const parseDate = dateString => {
-  return [
-    dateString.substr(0, 2),
-    parseInt(dateString.substr(2, 2), 10) - 1,
-    dateString.substr(4, 4),
-  ];
-};
 
 module.exports = crud;

@@ -5,6 +5,7 @@ const crud = new Router({
   prefix: '/api',
 });
 const paginator = require('../data/knex-paginator');
+const parseDate = require('../helpers/parse-date');
 
 const { knex } = require('../data/connect');
 
@@ -119,13 +120,5 @@ crud
 
     await next();
   });
-
-const parseDate = dateString => {
-  return [
-    dateString.substr(0, 2),
-    parseInt(dateString.substr(2, 2), 10) - 1,
-    dateString.substr(4, 4),
-  ];
-};
 
 module.exports = crud;
