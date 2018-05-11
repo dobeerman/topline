@@ -8,11 +8,11 @@ const db = mysql.createConnection(connection);
 const MAX_USERS = 5;
 const MAX_ROWS = 100; // change to 1e5
 
-const initdb_sql = () => {
+const initdb = () => {
   let sql;
 
   sql = `
-  CREATE TABLE IF NOT EXISTS users_sql (
+  CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_name VARCHAR(255),
     avatar VARCHAR(255)
@@ -26,15 +26,15 @@ const initdb_sql = () => {
       if (error) throw error;
 
       debug(
-        'Database `users_sql` %s',
+        'Database `users` %s',
         results.warningCount ? 'exists.' : 'created.',
       );
 
-      let sql = `SELECT COUNT(id) AS _rows FROM users_sql`;
+      let sql = `SELECT COUNT(id) AS _rows FROM users`;
 
       db.query(sql, (error, result, fields) => {
         if (!result[0]._rows) {
-          const sql = `INSERT INTO users_sql (user_name, avatar) VALUES ?`;
+          const sql = `INSERT INTO users (user_name, avatar) VALUES ?`;
 
           db.query(sql, [users], (error, result) => {
             if (error) throw error;
@@ -45,7 +45,7 @@ const initdb_sql = () => {
     });
 
     sql = `
-    CREATE TABLE IF NOT EXISTS books_sql (
+    CREATE TABLE IF NOT EXISTS books (
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255),
       description LONGTEXT,
@@ -59,21 +59,21 @@ const initdb_sql = () => {
       if (error) throw error;
 
       debug(
-        'Database `books_sql` %s',
+        'Database `books` %s',
         results.warningCount ? 'exists.' : 'created.',
       );
 
-      let sql = `SELECT COUNT(id) AS _rows FROM books_sql`;
+      let sql = `SELECT COUNT(id) AS _rows FROM books`;
 
       db.query(sql, (error, result, fields) => {
         if (!result[0]._rows) {
-          let sql_uids = `SELECT id FROM users_sql`;
+          let sql_uids = `SELECT id FROM users`;
 
           db.query(sql_uids, (error, result) => {
             if (error) throw error;
 
             const values = books(result.map(el => el.id));
-            const sql = `INSERT INTO books_sql (title, date, user_id, description, imageUrl) VALUES ?`;
+            const sql = `INSERT INTO books (title, date, user_id, description, imageUrl) VALUES ?`;
 
             db.query(sql, [values], (error, result) => {
               if (error) throw error;
@@ -86,4 +86,4 @@ const initdb_sql = () => {
   });
 };
 
-module.exports = initdb_sql;
+module.exports = initdb;
