@@ -6,8 +6,9 @@
 * [x] Limit, offset
 * [x] Update book
 * [x] Add pure SQL
+* [x] Promisify methods
 
 ```bash
 # run in SQL mode
-yarn sql
+yarn dev
 ```

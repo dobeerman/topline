@@ -7,8 +7,7 @@
   "author": "Alexander Smirnoff <a.dobeerman@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "dev": "nodemon src/",
-    "sql": "MODE=SQL nodemon src/"
+    "dev": "nodemon src/"
   },
   "dependencies": {
     "dotenv": "^5.0.1",
