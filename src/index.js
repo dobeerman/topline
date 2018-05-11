@@ -1,20 +1,15 @@
 const Koa = require('koa2');
 const Router = require('koa-router');
 
+const debug = require('debug')('app:index');
+
 require('dotenv').config();
+
 const app = new Koa();
 
-let crud;
+require(`./data/initdb`)();
 
-if (process.env.MODE && process.env.MODE === 'SQL') {
-  require('./data/initdb_sql')();
-  // Routes SQL
-  crud = require('./routes/crud_sql');
-} else {
-  require('./data/initdb')();
-  // Routes
-  crud = require('./routes/crud');
-}
+crud = require(`./routes/crud`);
 
 app
   .use(require('koa-body')())

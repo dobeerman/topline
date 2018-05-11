@@ -1,124 +1,115 @@
-const debug = require('debug')('crud:crud');
+const debug = require('debug')('sql:crud');
 const Router = require('koa-router');
 const faker = require('faker');
+const { getDate } = require('../helpers/parse-date');
+
+const db = require('../data/connect');
+
 const crud = new Router({
   prefix: '/api',
 });
-const paginator = require('../data/knex-paginator');
-const parseDate = require('../helpers/parse-date');
 
-const { knex } = require('../data/connect');
+const paginator = require('../data/sql-paginator');
 
 crud
   .get('/', async (ctx, next) => {
     const { limit: perPage, offset: page, where } = ctx.request.query;
 
-    const booksQuery = knex('books')
-      .join('users', 'books.user_id', '=', 'users.id')
-      .select(
-        'books.id',
-        'books.title',
-        'books.description',
-        'books.date',
-        'books.imageUrl',
-        'users.user_name',
-        'users.id as user_id',
-        'users.avatar',
-      )
-      .where(function() {
-        this.where('users.user_name', 'LIKE', `%${where}%`)
-          .orWhere('books.title', 'LIKE', `%${where}%`)
-          .orWhere('books.description', 'LIKE', `%${where}%`);
-      })
-      .orderBy('title', 'ASC');
+    const whereEscaped = db.escape(`%${where}%`);
 
-    ctx.body = await paginator(knex)(booksQuery, { perPage, page })
-      .then(result => result)
-      .catch(err => {
-        debug(err);
-      });
+    const booksQuery = `
+      SELECT
+        books.id, books.title, books.description, books.date, books.imageUrl,
+        users.user_name, users.id AS user_id, users.avatar
+      FROM books
+      JOIN users
+      ON books.user_id = users.id
+      WHERE
+        users.user_name LIKE ${whereEscaped}
+        OR
+        books.title LIKE ${whereEscaped}
+        OR
+        books.description LIKE ${whereEscaped}
+      ORDER BY title ASC`;
 
-    await next();
-  })
-  .get('/:id', async (ctx, next) => {
-    ctx.body = await knex('books')
-      .select()
-      .where('user_id', ctx.params.id)
-      .join('users', 'books.user_id', '=', 'users.id');
-    await next();
-  })
-  .get('/authors', async (ctx, next) => {
-    ctx.body = await knex('users')
-      .select()
-      .orderBy('user_name', 'asc')
-      .then(response => response);
-    ctx.body;
-    await next();
+    ctx.body = await paginator(booksQuery, page, perPage);
   })
   .get('/getbook', async (ctx, next) => {
     const { id } = ctx.request.query;
-    ctx.body = await knex('books')
-      .select()
-      .where('id', '=', id)
-      .then(response => response[0]);
-    ctx.body;
-    await next();
+
+    const bookQuery = `
+      SELECT
+        books.id, books.title, books.description, books.date, books.imageUrl,
+        users.user_name, users.id AS user_id, users.avatar
+      FROM books
+      JOIN users ON books.user_id = users.id
+      WHERE books.id = ?`;
+
+    try {
+      const book = await db.query(bookQuery, id);
+
+      ctx.body = book[0];
+    } catch (e) {
+      debug(e);
+    }
   })
-  .get('/users', async (ctx, next) => {
-    ctx.body = await knex('users').select('id');
-    await next();
+  .get('/authors', async (ctx, next) => {
+    ctx.body = await db.query(`SELECT * FROM users ORDER BY user_name ASC`);
   })
   .post('/create', async (ctx, next) => {
     const { book } = ctx.request.body.query;
-    debug(book);
 
-    const userId = await knex('users')
-      .select('id')
-      .where('user_name', '=', book.user_name)
-      .then(async userId => {
-        const [id] = userId;
+    let newBook,
+      sql = `SELECT id FROM users WHERE users.user_name = ?`,
+      userId = await db.query(sql, book.user_name);
 
-        if (id) return id.id;
+    sql = `INSERT INTO books (title, description, imageUrl, date, user_id) VALUES (?,?,?,?,?)`;
 
-        const newUser = await knex('users').insert(
-          {
-            user_name: book.user_name,
-            avatar: faker.image.avatar(),
-          },
-          'id',
-        );
+    Object.assign(book, { date: getDate(book.date) });
 
-        debug('User not found. It was created with id:%d', newUser[0]);
+    if (userId.length) {
+      newBook = await db.query(sql, [
+        book.title,
+        book.description,
+        book.imageUrl,
+        book.date,
+        result[0].id,
+      ]);
+    } else {
+      const newUser = await db.query(
+        `INSERT INTO users (user_name, avatar) VALUES(?,?)`,
+        [book.user_name, faker.image.avatar()],
+      );
 
-        return newUser[0];
-      })
-      .then(async userId => {
-        const { user_name, date, ...newBook } = book;
+      newBook = await db.query(sql, [
+        book.title,
+        book.description,
+        book.imageUrl,
+        book.date,
+        newUser.insertId,
+      ]);
+    }
 
-        Object.assign(newBook, { user_id: userId });
-
-        const [day, month, year] = parseDate(date);
-
-        Object.assign(newBook, {
-          date: new Date(year, month, day).toLocaleString(),
-        });
-
-        ctx.body = await knex('books').insert(newBook, 'id');
-        await next();
-      });
+    ctx.body = [newBook.insertId];
   })
   .post('/update/:id', async (ctx, next) => {
     const { id, date, ...book } = ctx.request.body.query.book;
 
-    const [day, month, year] = parseDate(date);
+    Object.assign(book, { date: getDate(date) });
 
-    Object.assign(book, { date: new Date(year, month, day).toLocaleString() });
+    debug('book', book, id, date);
 
-    ctx.body = await knex('books')
-      .where({ id: ctx.params.id })
-      .update(book);
+    const sql = `UPDATE books SET title = ?, description = ?, imageUrl = ?, date = ? WHERE books.id = ?`;
 
-    await next();
+    const bookUpdated = await db.query(sql, [
+      book.title,
+      book.description,
+      book.imageUrl,
+      book.date,
+      id,
+    ]);
+
+    ctx.body = bookUpdated[0];
   });
 
 module.exports = crud;
