@@ -9,7 +9,7 @@ const crud = new Router({
   prefix: '/api',
 });
 
-const paginator = require('../data/sql-paginator');
+const paginator = require('../data/paginator');
 
 crud
   .get('/', async (ctx, next) => {
@@ -46,7 +46,7 @@ crud
       WHERE books.id = ?`;
 
     try {
-      const book = await db.query(bookQuery, id);
+      const book = await db.queryRow(bookQuery, id);
 
       ctx.body = book[0];
     } catch (e) {
@@ -54,21 +54,21 @@ crud
     }
   })
   .get('/authors', async (ctx, next) => {
-    ctx.body = await db.query(`SELECT * FROM users ORDER BY user_name ASC`);
+    ctx.body = await db.queryRow(`SELECT * FROM users ORDER BY user_name ASC`);
   })
   .post('/create', async (ctx, next) => {
     const { book } = ctx.request.body.query;
 
     let newBook,
       sql = `SELECT id FROM users WHERE users.user_name = ?`,
-      userId = await db.query(sql, book.user_name);
+      userId = await db.queryRow(sql, book.user_name);
 
     sql = `INSERT INTO books (title, description, imageUrl, date, user_id) VALUES (?,?,?,?,?)`;
 
     Object.assign(book, { date: getDate(book.date) });
 
     if (userId.length) {
-      newBook = await db.query(sql, [
+      newBook = await db.queryRow(sql, [
         book.title,
         book.description,
         book.imageUrl,
@@ -76,12 +76,12 @@ crud
         result[0].id,
       ]);
     } else {
-      const newUser = await db.query(
+      const newUser = await db.queryRow(
         `INSERT INTO users (user_name, avatar) VALUES(?,?)`,
         [book.user_name, faker.image.avatar()],
       );
 
-      newBook = await db.query(sql, [
+      newBook = await db.queryRow(sql, [
         book.title,
         book.description,
         book.imageUrl,
@@ -101,7 +101,7 @@ crud
 
     const sql = `UPDATE books SET title = ?, description = ?, imageUrl = ?, date = ? WHERE books.id = ?`;
 
-    const bookUpdated = await db.query(sql, [
+    const bookUpdated = await db.queryRow(sql, [
       book.title,
       book.description,
       book.imageUrl,

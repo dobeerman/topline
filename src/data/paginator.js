@@ -9,7 +9,7 @@ module.exports = async (query, page = 1, limit = 10) => {
   const sql = `SELECT COUNT(*) AS total FROM (${query}) AS total; ${query} LIMIT ?, ?`;
 
   try {
-    const results = await db.query(sql, [offset, limit]);
+    const results = await db.queryRow(sql, [offset, limit]);
 
     const result = {
       pagination: {
