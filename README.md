@@ -7,6 +7,7 @@
 * [x] Update book
 * [x] Add pure SQL
 * [x] Promisify methods
+* [x] Migrate to Ramda
 
 ```bash
 yarn dev
