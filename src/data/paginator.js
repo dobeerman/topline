@@ -1,5 +1,6 @@
-const debug = require('debug')('sql:paginator');
+const debug = require('debug')('app:paginator');
 const db = require('./connect');
+const R = require('../helpers/ramda/paginator');
 
 module.exports = async (query, page = 1, limit = 10) => {
   if (page < 1) page = 1;
@@ -9,21 +10,26 @@ module.exports = async (query, page = 1, limit = 10) => {
   const sql = `SELECT COUNT(*) AS total FROM (${query}) AS total; ${query} LIMIT ?, ?`;
 
   try {
-    const results = await db.queryRow(sql, [offset, limit]);
+    let results = await db.queryRow(sql, [offset, limit]);
 
-    const result = {
+    results = R.flatten(results);
+
+    const f = R.pipe(R.head, R.props(['total']), R.head);
+
+    const total = f(results);
+    const data = R.tail(results);
+
+    return {
       pagination: {
-        total: results[0][0].total,
+        total,
         limit,
-        currentPage: page,
-        lastPage: Math.ceil(results[0][0].total / limit),
+        currentPage: parseInt(page, 10),
+        lastPage: Math.ceil(total / limit),
         from: offset,
-        to: offset + results[1].length,
+        to: offset + data.length,
       },
-      data: results[1],
+      data,
     };
-
-    return result;
   } catch (e) {
     debug(e);
   }

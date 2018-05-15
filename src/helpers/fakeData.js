@@ -1,46 +1,35 @@
-const faker = require('faker');
+const debug = require('debug')('app:fake');
+const faker = require('faker/locale/ru');
+const R = require('../helpers/ramda/faker');
 
 const MAX_USERS = 5;
-const MAX_ROWS = 10; // change to 1e5
-const SQL = process.env.MODE === 'SQL';
+const MAX_ROWS = 15; // change to 1e5
 
-module.exports.users = [...Array(MAX_USERS).keys()].map(idx => {
-  if (SQL) {
-    return [
-      `${faker.name.firstName()} ${faker.name.lastName()}`,
-      faker.image.avatar(),
-    ];
-  } else {
-    return {
-      user_name: `${faker.name.firstName()} ${faker.name.lastName()}`,
-      avatar: faker.image.avatar(),
-    };
-  }
-});
+const makeUser = user => [`${faker.name.findName()}`, faker.image.avatar()];
 
-const imagesTypes = ['animals', 'arch', 'nature', 'people', 'tech'];
+function Book() {
+  this.elements = ['animals', 'arch', 'nature', 'people', 'tech'];
+}
 
-module.exports.books = uids =>
-  [...Array(MAX_ROWS).keys()].map(idx => {
-    if (SQL) {
-      return [
-        faker.lorem.sentence(),
-        faker.date.past(10),
-        faker.random.arrayElement(uids), // author
-        faker.lorem.sentences(3, 3),
-        `https://placeimg.com/320/240/${faker.random.arrayElement(
-          imagesTypes,
-        )}`,
-      ];
-    } else {
-      return {
-        title: faker.lorem.sentence(),
-        date: faker.date.past(10),
-        user_id: faker.random.arrayElement(uids), // author
-        description: faker.lorem.sentences(3, 3),
-        imageUrl: `https://placeimg.com/320/240/${faker.random.arrayElement(
-          imagesTypes,
-        )}`,
-      };
-    }
-  });
+Book.prototype.details = function() {
+  return [
+    faker.lorem.sentence(),
+    faker.date.past(10),
+    faker.random.arrayElement(R.range(1, MAX_USERS + 1)),
+    faker.lorem.sentences(3, 3),
+    `https://placeimg.com/320/240/${faker.random.arrayElement(this.elements)}`,
+  ];
+};
+
+const books = () => {
+  const BookConstructor = R.construct(Book);
+  const bookDetails = R.invoker(0, 'details');
+  const detailedNewBook = R.compose(bookDetails, BookConstructor);
+
+  return R.map(detailedNewBook, R.range(1, MAX_ROWS + 1));
+};
+
+// Exports
+module.exports.users = R.map(makeUser, R.range(1, MAX_USERS + 1));
+
+module.exports.books = books;

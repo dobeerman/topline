@@ -1,16 +1,10 @@
-const parseDate = dateString => {
-  return [
-    dateString.substr(0, 2),
-    parseInt(dateString.substr(2, 2), 10) - 1,
-    dateString.substr(4, 4),
-  ];
-};
+const debug = require('debug')('app:parsedate');
+const Rmatch = require('ramda/src/match');
 
-const getDate = dateString => {
-  const [day, month, year] = parseDate(dateString);
-  return new Date(year, month, day).toLocaleString();
-};
+const getDate = date => {
+  const [_, d, m, y] = Rmatch(/(^[\d]{2})([\d]{2})([\d].+)/, date);
 
-module.exports.parseDate = parseDate;
+  return new Date(y, m, d).toLocaleString();
+};
 
 module.exports.getDate = getDate;

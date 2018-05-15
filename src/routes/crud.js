@@ -1,7 +1,8 @@
-const debug = require('debug')('sql:crud');
+const debug = require('debug')('app:crud');
 const Router = require('koa-router');
-const faker = require('faker');
+const faker = require('faker/locale/ru');
 const { getDate } = require('../helpers/parse-date');
+const R = require('../helpers/ramda/crud');
 
 const db = require('../data/connect');
 
@@ -13,7 +14,7 @@ const paginator = require('../data/paginator');
 
 crud
   .get('/', async (ctx, next) => {
-    const { limit: perPage, offset: page, where } = ctx.request.query;
+    const { limit: perPage, offset: page, where = '' } = ctx.request.query;
 
     const whereEscaped = db.escape(`%${where}%`);
 
@@ -22,7 +23,7 @@ crud
         books.id, books.title, books.description, books.date, books.imageUrl,
         users.user_name, users.id AS user_id, users.avatar
       FROM books
-      JOIN users
+      LEFT JOIN users
       ON books.user_id = users.id
       WHERE
         users.user_name LIKE ${whereEscaped}
@@ -48,7 +49,7 @@ crud
     try {
       const book = await db.queryRow(bookQuery, id);
 
-      ctx.body = book[0];
+      ctx.body = R.head(book);
     } catch (e) {
       debug(e);
     }
@@ -60,56 +61,54 @@ crud
     const { book } = ctx.request.body.query;
 
     let newBook,
-      sql = `SELECT id FROM users WHERE users.user_name = ?`,
-      userId = await db.queryRow(sql, book.user_name);
+      sql = `SELECT id FROM users WHERE user_name = ?`,
+      userId = await db.query(sql, [book.user_name]);
 
-    sql = `INSERT INTO books (title, description, imageUrl, date, user_id) VALUES (?,?,?,?,?)`;
+    sql = `INSERT INTO books SET ?`;
 
-    Object.assign(book, { date: getDate(book.date) });
+    bookObject = R.merge(book, { date: getDate(R.prop('date')(book)) });
+
+    const values = R.pick(
+      ['title', 'description', 'imageUrl', 'date'],
+      bookObject,
+    );
 
     if (userId.length) {
-      newBook = await db.queryRow(sql, [
-        book.title,
-        book.description,
-        book.imageUrl,
-        book.date,
-        result[0].id,
-      ]);
-    } else {
-      const newUser = await db.queryRow(
-        `INSERT INTO users (user_name, avatar) VALUES(?,?)`,
-        [book.user_name, faker.image.avatar()],
-      );
+      bookObject = R.merge(values, { user_id: uid(userId) });
 
-      newBook = await db.queryRow(sql, [
-        book.title,
-        book.description,
-        book.imageUrl,
-        book.date,
-        newUser.insertId,
-      ]);
+      newBook = await db.queryRow(sql, bookObject);
+    } else {
+      const newUser = await db.queryRow(`INSERT INTO users SET ?`, {
+        user_name: book.user_name,
+        avatar: faker.image.avatar(),
+      });
+
+      bookObject = R.merge(values, { user_id: R.prop('insertId', newUser) });
+
+      newBook = await db.queryRow(sql, bookObject);
     }
 
-    ctx.body = [newBook.insertId];
+    ctx.body = R.prop('insertId', newBook);
   })
   .post('/update/:id', async (ctx, next) => {
     const { id, date, ...book } = ctx.request.body.query.book;
 
-    Object.assign(book, { date: getDate(date) });
+    const bookObject = R.merge(book, { date: getDate(date) });
 
-    debug('book', book, id, date);
+    const values = R.append(
+      id,
+      R.props(['title', 'description', 'imageUrl', 'date'], bookObject),
+    );
 
     const sql = `UPDATE books SET title = ?, description = ?, imageUrl = ?, date = ? WHERE books.id = ?`;
 
-    const bookUpdated = await db.queryRow(sql, [
-      book.title,
-      book.description,
-      book.imageUrl,
-      book.date,
-      id,
-    ]);
+    const bookUpdated = await db.queryRow(sql, values);
 
-    ctx.body = bookUpdated[0];
+    ctx.body = R.head(bookUpdated);
   });
+
+function uid(userId) {
+  return R.prop('id', R.head(userId));
+}
 
 module.exports = crud;
