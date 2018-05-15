@@ -9,6 +9,5 @@
 * [x] Promisify methods
 
 ```bash
-# run in SQL mode
 yarn dev
 ```

@@ -29,4 +29,6 @@ pool.getConnection((err, connection) => {
 
 pool.query = util.promisify(pool.query); // Magic happens here.
 
+pool.queryRow = async (q, p) => await pool.query(q, p);
+
 module.exports = pool;
